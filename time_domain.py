@@ -3,7 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import scipy.signal
 from pathlib import Path
-
+import math
+from collections import Counter
 
 def plot_file(file):
     # 1. Load the CSV file
@@ -19,7 +20,7 @@ def plot_file(file):
     time = data.index
     data0 = data['0']
     acceleration0 = data['0']
-    acceleration1 = data['1']
+    # acceleration1 = data['1']
 
     peaks, _ = scipy.signal.find_peaks(acceleration0, distance = 200, height=.1)
     peaks = peaks / 10000
@@ -40,40 +41,66 @@ def plot_file(file):
 
     return
 
+def add_feature(df, feature, values):
+    df[feature] = values
+    return df
 
 
-def extract_blips(file):
+def extract_peaks(file):
     data = pd.read_csv(file, index_col="Time")
 
-    data0 = data['0']
-    acceleration0 = data['0']
+    acceleration0 = data['0'] #Using only accelerometer 0
 
-    peaks, _ = scipy.signal.find_peaks(acceleration0, distance = 100000, height=.1) #This height needs to be configured
+    peaks, _ = scipy.signal.find_peaks(acceleration0, distance = 200, height=.1) #This height needs to be configured
     peaks = peaks / 10000 #time of peaks
     match (len(peaks)):
         case 0:
             return None, None, None
         case 1 | 2:
-            magnitude = np.array(data0.loc[peaks])
+            magnitude = np.array(acceleration0.loc[peaks])
             return peaks, magnitude, None
 
-    magnitude = np.array(data0.loc[peaks]) #magnitude of peaks
+    magnitude = np.array(acceleration0.loc[peaks]) #magnitude of peaks
 
-    #Get std of distance between peaks
+    #Get std, mean of distance between peaks
     time_differences = [(peaks[i] - peaks[i - 1]) for i in range(1, len(peaks))] 
     std_dev = np.std(time_differences)
     mean_time_diff = np.mean(time_differences)
+    median_time_diff = np.median(time_differences)
 
-    return peaks, magnitude, std_dev, mean_time_diff, file
+    max_peak = max(magnitude)
+    median_peak = np.median(magnitude)
+    std_peak = np.std(magnitude)
+    
+    avg_peaks_per_second = np.mean(peaks)
+    sum_peak_magnitude = np.sum(magnitude)
+
+    
+
+    results = {
+        "file_name": file,
+        "std_dev": std_dev,
+        "mean_time_diff": mean_time_diff,
+        "median_time_diff": median_time_diff,
+        "max_peak": max_peak,
+        "median_peak": median_peak,
+        "std_peak": std_peak,
+        "avg_peaks_per_second": avg_peaks_per_second,
+        "sum_peak_magnitude": sum_peak_magnitude
+    }
+
+    return results
 
 def main():
     directory_name = "Data/After_May/"
     directory = Path(directory_name)
 
+    df = pd.DataFrame()
+
     # Get all file names in the directory
     file_names = [directory_name+f.name for f in directory.iterdir() if f.is_file()]
 
-    extract_all_files = [extract_blips(f) for f in file_names]
+    extract_all_files = [peaks(f) for f in file_names]
     [plot_file(f) for f in file_names] #Plot each file individually, hit q to progress through plots
 
     zipped_list = [(row[2],row[3]) for row in extract_all_files if row[2] is not None] #get standard deviations

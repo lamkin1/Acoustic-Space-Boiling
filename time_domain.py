@@ -57,6 +57,7 @@ def extract_peaks(file):
         case 0:
             return None, None, None
         case 1 | 2:
+            # NEEDS TO BE UPDATED TO INCLUDE NEW FEATURES
             magnitude = np.array(acceleration0.loc[peaks])
             return peaks, magnitude, None
 
@@ -75,7 +76,13 @@ def extract_peaks(file):
     avg_peaks_per_second = np.mean(peaks)
     sum_peak_magnitude = np.sum(magnitude)
 
-    
+    threshold = 0.1
+    percent_time_above_threshold = np.mean([amplitude > threshold for amplitude in acceleration0])
+
+    post_peaks = [peak + 100 for peak in peaks]
+    post_peak_avgs = [np.mean(acceleration0.loc[post_peak:post_peak+100]) for post_peak in post_peaks]
+    mean_post_peak_magnitude = np.mean(post_peak_avgs)
+    std_dev_post_peak_magnitude = np.std(post_peak_avgs)
 
     results = {
         "file_name": file,
@@ -86,7 +93,10 @@ def extract_peaks(file):
         "median_peak": median_peak,
         "std_peak": std_peak,
         "avg_peaks_per_second": avg_peaks_per_second,
-        "sum_peak_magnitude": sum_peak_magnitude
+        "sum_peak_magnitude": sum_peak_magnitude,
+        "percent_time_above_threshold": percent_time_above_threshold,
+        "mean_post_peak_magnitude": mean_post_peak_magnitude,
+        "std_dev_post_peak_magnitude": std_dev_post_peak_magnitude,
     }
 
     return results

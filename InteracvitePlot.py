@@ -28,8 +28,10 @@ def create_dash_app(df, directory):
         df,
         x="PCA1",
         y="PCA2",
-        color="Cluster",
-        hover_data=["file_name"]
+        color=df["Cluster"].astype(str),  # Keep Cluster discrete
+        hover_data=["file_name"],
+        category_orders={"Cluster": sorted(df["Cluster"].unique())},  # Maintain integer order
+        labels={"color": "Cluster"}  # Rename legend label
     )
 
     fig.update_traces(

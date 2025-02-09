@@ -113,7 +113,7 @@ def process_file(input_file, output_feature_folder, output_plot_folder, column_i
     print(f"Processed: {input_file} -> {features_csv_path}, {fft_plot_path}, {psd_plot_path}")
 
 def main():
-    if len(sys.argv) != 4:
+    if len(sys.argv) != 5:
         print("Usage: python fourier_transform.py <input_folder> <output_feature_folder> <output_plot_folder> <column_index>")
         sys.exit(1)
 

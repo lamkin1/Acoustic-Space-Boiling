@@ -199,6 +199,5 @@ project_root = script_path.parents[0]
 # Load the CSV file (make sure it has PCA1-PCA6, Cluster, file_name)
 df = pd.read_csv(project_root / "Clustering/Scripts/pcaDF.csv")
 
-df["file_name"] = df["file_name"].str[64:]
 app = create_dash_app(df, project_root)
 app.run(debug=True)

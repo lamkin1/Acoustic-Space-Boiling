@@ -1,12 +1,13 @@
-import itertools
-
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import scipy.signal
 from pathlib import Path
-import math
-from collections import Counter
+import scipy.signal as signal
+import scipy.stats as stats
+import pywt
+import hurst
+
 
 def plot_file(file):
     # 1. Load the CSV file
@@ -129,6 +130,46 @@ def get_zero_crossing_rate(data):
 
     # Return the average of the differences (zero crossing rate)
     return np.mean(cross_slopes) if cross_slopes else 0
+
+
+def spectral_entropy(signal_data, fs=1000):
+    """
+    Compute spectral entropy from the power spectral density (PSD).
+    """
+    freqs, psd = signal.welch(signal_data, fs=fs, nperseg=256)
+    psd_norm = psd / np.sum(psd)  # Normalize power spectrum
+    entropy = -np.sum(psd_norm * np.log2(psd_norm + 1e-12))  # Compute entropy
+    return entropy
+
+
+def compute_hurst(signal_data):
+    """
+    Computes the Hurst Exponent to measure long-term correlations.
+    """
+    return hurst.compute_Hc(signal_data, kind='price', simplified=True)[0]
+
+
+def compute_higuchi_fd(signal_data, k_max=10):
+    """
+    Computes Higuchi's Fractal Dimension (HFD).
+    """
+    N = len(signal_data)
+    Lmk = np.zeros((k_max, k_max))
+
+    for k in range(1, k_max + 1):
+        for m in range(k):
+            Lm = 0
+            count = 0
+            for i in range(1, (N - m) // k):
+                Lm += abs(signal_data[m + i * k] - signal_data[m + (i - 1) * k])
+                count += 1
+            Lmk[k - 1, m] = (Lm / count) * ((N - 1) / (k * count))
+
+    Lk = np.mean(Lmk, axis=1)
+    log_Lk = np.log(Lk)
+    log_k = np.log(np.arange(1, k_max + 1))
+
+    return -np.polyfit(log_k, log_Lk, 1)[0]
 
 
 def unpack_data(data):

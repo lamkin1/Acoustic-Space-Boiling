@@ -142,6 +142,8 @@ def process_directory(directory_name="Data/After_May/"):
 
     # Convert to DataFrame
     feature_df = pd.DataFrame(extracted_features)
+    feature_df.to_csv("features.csv", index=False)
+    print(f"Features saved successfully to 'features.csv'!")
 
 
 if __name__ == "__main__":

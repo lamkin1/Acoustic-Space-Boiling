@@ -125,9 +125,11 @@ def create_dash_app(df, directory):
         hover_data = hoverData["points"][0]
         bbox = hover_data["bbox"]
         file_name = hover_data["customdata"]
+        print(hover_data)
 
         png_file = file_name + ".png"
-        image_path = f"assets/pngs/{png_file}"
+        print(png_file)
+        image_path = f"assets/pngs/{png_file[15:]}"
 
         if not os.path.exists(image_path):
             return False, dash.no_update, dash.no_update, dash.no_update
@@ -181,9 +183,12 @@ def create_dash_app(df, directory):
     def update_images(selected_files):
         if len(selected_files) == 0:
             return "", {"display": "none"}, "", {"display": "none"}
+        print("test")
+        print(selected_files[0])
+        print(selected_files[0][15:])
 
-        img1_src = f"/assets/pngs/{selected_files[0]}.png" if len(selected_files) > 0 else ""
-        img2_src = f"/assets/pngs/{selected_files[1]}.png" if len(selected_files) > 1 else ""
+        img1_src = f"/assets/pngs/{selected_files[0][15:]}.png" if len(selected_files) > 0 else ""
+        img2_src = f"/assets/pngs/{selected_files[1][15:]}.png" if len(selected_files) > 1 else ""
 
         img1_style = {"width": "100%", "display": "block"} if img1_src else {"display": "none"}
         img2_style = {"width": "100%", "display": "block"} if img2_src else {"display": "none"}
@@ -197,7 +202,7 @@ script_path = Path(__file__).resolve()
 project_root = script_path.parents[0]
 
 # Load the CSV file (make sure it has PCA1-PCA6, Cluster, file_name)
-df = pd.read_csv(project_root / "Clustering/Scripts/pcaDF.csv")
+df = pd.read_csv(project_root / "pcaDF.csv")
 
 app = create_dash_app(df, project_root)
 app.run(debug=True)

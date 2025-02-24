@@ -172,6 +172,36 @@ def compute_higuchi_fd(signal_data, k_max=10):
     return -np.polyfit(log_k, log_Lk, 1)[0]
 
 
+def compute_spectral_centroid(signal_data, fs=1000):
+    """
+    Computes the spectral centroid, indicating the center of mass of the frequency spectrum.
+    """
+    freqs, psd = signal.welch(signal_data, fs=fs, nperseg=256)
+    centroid = np.sum(freqs * psd) / np.sum(psd)
+    return centroid
+
+
+def compute_spectral_flatness(signal_data, fs=1000):
+    """
+    Computes spectral flatness, which measures the noisiness of the signal in the frequency domain.
+    """
+    freqs, psd = signal.welch(signal_data, fs=fs, nperseg=256)
+    geometric_mean = np.exp(np.mean(np.log(psd + 1e-12)))  # Avoid log(0)
+    arithmetic_mean = np.mean(psd)
+    flatness = geometric_mean / arithmetic_mean
+    return flatness
+
+
+def compute_spectral_bandwidth(signal_data, fs=1000):
+    """
+    Computes spectral bandwidth, which quantifies the spread of the frequency spectrum.
+    """
+    freqs, psd = signal.welch(signal_data, fs=fs, nperseg=256)
+    centroid = np.sum(freqs * psd) / np.sum(psd)
+    bandwidth = np.sqrt(np.sum(psd * (freqs - centroid) ** 2) / np.sum(psd))
+    return bandwidth
+
+
 def unpack_data(data):
     '''
     Unpacks dataframe into time and signal
@@ -185,13 +215,11 @@ def main():
     directory_name = "Data/After_May/"
     directory = Path(directory_name)
 
-    df = pd.DataFrame()
-
     # Get all file names in the directory
     file_names = [directory_name+f.name for f in directory.iterdir() if f.is_file()]
 
 
-    extract_all_files = [peaks(f) for f in file_names]
+    extract_all_files = [extract_peaks(f) for f in file_names]
     [plot_file(f) for f in file_names] #Plot each file individually, hit q to progress through plots
 
     zipped_list = [(row[2],row[3]) for row in extract_all_files if row[2] is not None] #get standard deviations

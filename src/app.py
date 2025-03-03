@@ -229,12 +229,14 @@ from pathlib import Path
 script_path = Path(__file__).resolve()
 project_root = script_path.parents[0]
 
+print(project_root)
+
 # Load different CSV files for each PCA component count.
-df_2 = pd.read_csv(project_root / "pcaDF_2.csv")
-df_3 = pd.read_csv(project_root / "pcaDF_3.csv")
-df_4 = pd.read_csv(project_root / "pcaDF_4.csv")
-df_5 = pd.read_csv(project_root / "pcaDF_5.csv")
-df_6 = pd.read_csv(project_root / "pcaDF_6.csv")
+df_2 = pd.read_csv(project_root / "/assets/pcaDF_2.csv")
+df_3 = pd.read_csv(project_root / "/assets/pcaDF_3.csv")
+df_4 = pd.read_csv(project_root / "/assets/pcaDF_4.csv")
+df_5 = pd.read_csv(project_root / "/assets/pcaDF_5.csv")
+df_6 = pd.read_csv(project_root / "/assets/pcaDF_6.csv")
 
 # Optionally remove unwanted prefix from file_name column.
 for df in [df_2, df_3, df_4, df_5, df_6]:

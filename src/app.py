@@ -1,32 +1,31 @@
-# app.py
 import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output, State
 import plotly.express as px
 import pandas as pd
 import os
-import shutil
 from pathlib import Path
 
 def create_dash_app(df_dict, directory):
     """
     Parameters:
-      df: DataFrame containing 'PCA1' ... 'PCA6', 'Cluster', and 'file_name'
+      df_dict: Dictionary with keys (2,3,...,6) corresponding to dataframes
+               that contain 'PCA1', 'PCA2', ... plus 'Cluster' and 'file_name'
       directory: Base directory (used to locate PNG files)
     """
-    # Create the Dash app
     app = dash.Dash(__name__)
 
-    # Define dropdown options for PCA components
+    # Define dropdown options for number of PCA components (2 to 6)
     pca_count_options = [{'label': str(n), 'value': n} for n in range(2, 7)]
     default_pca_count = 2
 
-    axis_options = [{'label': f'PCA{i}', 'value': f'PCA{i}'} for i in range(1, default_pca_count+1)]
+    # Initial axis options for PCA components (for 2 components)
+    axis_options = [{'label': f'PCA{i}', 'value': f'PCA{i}'} for i in range(1, default_pca_count + 1)]
 
-    # Create an initial figure (default: PCA1 vs PCA2)
+    # Create an initial figure using the dataframe for 2 components (2D scatter)
     dff = df_dict[default_pca_count]
     default_fig = px.scatter(
-        df,
+        dff,
         x="PCA1",
         y="PCA2",
         color=dff["Cluster"].astype(str),
@@ -41,7 +40,6 @@ def create_dash_app(df_dict, directory):
     )
     default_fig.update_layout(dragmode="select")
 
-    # Define the layout of the app
     app.layout = html.Div([
         html.Div([
             html.Label("Number of PCA Components:"),
@@ -59,6 +57,11 @@ def create_dash_app(df_dict, directory):
             html.Label("Y-Axis:"),
             dcc.Dropdown(id="yaxis", options=axis_options, value="PCA2")
         ], style={"width": "30%", "display": "inline-block", "padding": "10px"}),
+        # The Z-axis dropdown is conditionally shown when more than 2 components are available.
+        html.Div([
+            html.Label("Z-Axis:"),
+            dcc.Dropdown(id="zaxis", options=[], value="PCA3")
+        ], id="zaxis-div", style={"display": "none", "width": "30%", "display": "inline-block", "padding": "10px"}),
         dcc.Store(id="current-yaxis", data="PCA2"),
         dcc.Graph(id='scatter-plot', figure=default_fig, clear_on_unhover=True),
         dcc.Tooltip(id="graph-tooltip", direction="bottom"),
@@ -75,33 +78,65 @@ def create_dash_app(df_dict, directory):
     ])
 
     # --- Callbacks ---
+
+    # Update dropdown options for X, Y, and Z axes based on the number of PCA components selected.
     @app.callback(
         Output("xaxis", "options"),
         Output("yaxis", "options"),
+        Output("zaxis", "options"),
         Input("pca-count", "value")
     )
     def update_axis_options(pca_count):
-        options = [{'label': f'PCA{i}', 'value': f'PCA{i}'} for i in range(1, pca_count+1)]
-        return options, options
+        options = [{'label': f'PCA{i}', 'value': f'PCA{i}'} for i in range(1, pca_count + 1)]
+        # Only provide options for Z if more than 2 components are selected.
+        z_options = options if pca_count > 2 else []
+        return options, options, z_options
 
+    # Toggle visibility of the Z-axis dropdown div based on PCA count.
+    @app.callback(
+        Output("zaxis-div", "style"),
+        Input("pca-count", "value")
+    )
+    def toggle_zaxis_div(pca_count):
+        if pca_count > 2:
+            return {"width": "30%", "display": "inline-block", "padding": "10px"}
+        else:
+            return {"display": "none"}
+
+    # Update the scatter plot based on selected axes and PCA count.
     @app.callback(
         Output("scatter-plot", "figure"),
         Output("current-yaxis", "data"),
         Input("xaxis", "value"),
         Input("yaxis", "value"),
+        Input("zaxis", "value"),
         Input("pca-count", "value")
     )
-    def update_scatter(xaxis, yaxis, pca_count):
+    def update_scatter(xaxis, yaxis, zaxis, pca_count):
         dff = df_dict[pca_count]
-        fig = px.scatter(
-            dff,
-            x=xaxis,
-            y=yaxis,
-            color=dff["Cluster"].astype(str),
-            hover_data=["file_name"],
-            category_orders={"Cluster": sorted(dff["Cluster"].unique())},
-            labels={"color": "Cluster"}
-        )
+        if pca_count > 2:
+            # Create a 3D scatter plot if more than 2 components are available.
+            fig = px.scatter_3d(
+                dff,
+                x=xaxis,
+                y=yaxis,
+                z=zaxis,
+                color=dff["Cluster"].astype(str),
+                hover_data=["file_name"],
+                category_orders={"Cluster": sorted(dff["Cluster"].unique())},
+                labels={"color": "Cluster"}
+            )
+        else:
+            # Create a 2D scatter plot for 2 components.
+            fig = px.scatter(
+                dff,
+                x=xaxis,
+                y=yaxis,
+                color=dff["Cluster"].astype(str),
+                hover_data=["file_name"],
+                category_orders={"Cluster": sorted(dff["Cluster"].unique())},
+                labels={"color": "Cluster"}
+            )
         fig.update_traces(
             marker=dict(size=8),
             customdata=dff["file_name"],
@@ -126,17 +161,17 @@ def create_dash_app(df_dict, directory):
         bbox = hover_data["bbox"]
         file_name = hover_data["customdata"]
         png_file = file_name + ".png"
+        # Construct the full file system path for checking file existence.
         image_path = os.path.join(directory, "assets", png_file)
-
         if not os.path.exists(image_path):
             return False, dash.no_update, dash.no_update, dash.no_update
 
         children = html.Div([
-            html.Img(src=f"assets/{png_file}", style={"width": "200px"}),
+            html.Img(src=f"/assets/{png_file}", style={"width": "200px"}),
         ])
-
         y = hover_data["y"]
-        median_val = df_dict[current_yaxis].median() if current_yaxis in df.columns else 0
+        # (Using a dummy median value for tooltip direction here.)
+        median_val = 0
         direction = "bottom" if y > median_val else "top"
 
         return True, bbox, children, direction
@@ -194,17 +229,18 @@ from pathlib import Path
 script_path = Path(__file__).resolve()
 project_root = script_path.parents[0]
 
+# Load different CSV files for each PCA component count.
 df_2 = pd.read_csv(project_root / "pcaDF_2.csv")
 df_3 = pd.read_csv(project_root / "pcaDF_3.csv")
 df_4 = pd.read_csv(project_root / "pcaDF_4.csv")
 df_5 = pd.read_csv(project_root / "pcaDF_5.csv")
 df_6 = pd.read_csv(project_root / "pcaDF_6.csv")
 
-# (Optional: remove unwanted prefix from file_name column)
+# Optionally remove unwanted prefix from file_name column.
 for df in [df_2, df_3, df_4, df_5, df_6]:
-    df["file_name"] = df["file_name"].str[64:]
+    df["file_name"] = df["file_name"].str[15:]
 
-# Store the dataframes in a dictionary.
+# Store the dataframes in a dictionary keyed by the number of PCA components.
 df_dict = {
     2: df_2,
     3: df_3,
@@ -212,6 +248,7 @@ df_dict = {
     5: df_5,
     6: df_6
 }
+
 app = create_dash_app(df_dict, project_root)
 
 # Export the underlying Flask server for production

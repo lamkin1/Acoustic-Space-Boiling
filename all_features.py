@@ -63,10 +63,13 @@ def extract_peaks(file):
     data = pd.read_csv(file, index_col="Time")
     _, signal_data = unpack_data(data)
 
-    peaks, _ = signal.find_peaks(signal_data, distance=200, height=0.1)
+    height = max(np.percentile(signal_data, 95), 0.01)
+    distance = 300 + 5 / height
+
+    peaks, _ = signal.find_peaks(signal_data, distance=distance, height=height)
     peaks = peaks / 10000  # Convert to time domain
 
-    if len(peaks) == 0:
+    if len(peaks) <= 2:
         return None
 
     magnitude = np.array(signal_data.loc[peaks])
@@ -82,14 +85,8 @@ def extract_peaks(file):
     avg_peaks_per_second = np.mean(peaks) if len(peaks) > 0 else np.nan
     sum_peak_magnitude = np.sum(magnitude) if len(magnitude) > 0 else np.nan
 
-    threshold = 0.1
+    threshold = height
     percent_time_above_threshold = np.mean(signal_data > threshold)
-
-    post_peaks = [peak + 100 for peak in peaks]
-    post_peak_avgs = [np.mean(signal_data.loc[post_peak:post_peak + 100]) for post_peak in post_peaks if
-                      post_peak + 100 in signal_data.index]
-    # mean_post_peak_magnitude = np.mean(post_peak_avgs) if len(post_peak_avgs) > 0 else np.nan
-    # std_dev_post_peak_magnitude = np.std(post_peak_avgs) if len(post_peak_avgs) > 0 else np.nan
 
     return {
         "file_name": file,
@@ -142,6 +139,7 @@ def process_directory(directory_name="Data/After_May/"):
 
     # Convert to DataFrame
     feature_df = pd.DataFrame(extracted_features)
+    feature_df.dropna(inplace=True)  # remove runs with 2 or fewer peaks
     feature_df.to_csv("features.csv", index=False)
     print(f"Features saved successfully to 'features.csv'!")
 

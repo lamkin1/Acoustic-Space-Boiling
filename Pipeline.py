@@ -66,12 +66,12 @@ def apply_pca(scaledData, n_components, previous_column_names, verbose = False):
 
     return pcaDF, loading_matrix
 
-def apply_clustering(pcaDF: pd.DataFrame, n_clusters = 3):
+def apply_clustering(pcaDF: pd.DataFrame, num_components, n_clusters = 3, ):
     kmeans = KMeans(n_clusters, random_state = 42)
-    clusters = kmeans.fit_predict(pcaDF.values)
-
-    # Add cluster prediction to each observation
-    pcaDF['Cluster'] = clusters
+    for i in range(2, num_components + 1):
+        runPcaDF = pcaDF.values[:,:i]
+        clusters = kmeans.fit_predict(runPcaDF)
+        pcaDF[f'Cluster_{i}_PCs'] = clusters
 
     return pcaDF
     
@@ -87,6 +87,8 @@ def main():
     # Define the expected number of arguments
     expected_args = 2
 
+    # Define number of clusters
+    n_clusters = 3
 
     try:
         opts, args = getopt.getopt(sys.argv[1:], "v")
@@ -141,7 +143,7 @@ def main():
         print("Completed PCA")
 
         # Apply Clustering (KMeans as of now)
-        clustered_df = apply_clustering(pca_data, n_clusters = 3)
+        clustered_df = apply_clustering(pca_data, 6, n_clusters = n_clusters)
 
         print("Completed Clustering")
 
@@ -149,7 +151,7 @@ def main():
         clustered_df["file_name"] = file_names
 
         # Convert to csv file
-        output_path_df, output_path_loadings = os.path.join(output_dir, "clusteredDF.csv"), os.path.join(output_dir, "loadings.csv")
+        output_path_df, output_path_loadings = os.path.join(output_dir, f'results_{n_clusters}_clusters.csv'), os.path.join(output_dir, f'loadings_{n_clusters}_clusters.csv')
         clustered_df.to_csv(output_path_df, index=False) #save it to the output directory
 
         loadings_matrix.reset_index(inplace=True)

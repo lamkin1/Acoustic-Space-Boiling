@@ -40,6 +40,7 @@ def create_dash_app(df_dict, directory):
     )
     default_fig.update_layout(dragmode="select")
 
+    # This is the main app layout (will be shown after a successful login)
     app.layout = html.Div([
         html.Div([
             html.Label("Number of PCA Components:"),
@@ -57,7 +58,6 @@ def create_dash_app(df_dict, directory):
             html.Label("Y-Axis:"),
             dcc.Dropdown(id="yaxis", options=axis_options, value="PCA2")
         ], style={"width": "30%", "display": "inline-block", "padding": "10px"}),
-        # The Z-axis dropdown is conditionally shown when more than 2 components are available.
         html.Div([
             html.Label("Z-Axis:"),
             dcc.Dropdown(id="zaxis", options=[], value="PCA3")
@@ -79,7 +79,6 @@ def create_dash_app(df_dict, directory):
 
     # --- Callbacks ---
 
-    # Update dropdown options for X, Y, and Z axes based on the number of PCA components selected.
     @app.callback(
         Output("xaxis", "options"),
         Output("yaxis", "options"),
@@ -88,11 +87,9 @@ def create_dash_app(df_dict, directory):
     )
     def update_axis_options(pca_count):
         options = [{'label': f'PCA{i}', 'value': f'PCA{i}'} for i in range(1, pca_count + 1)]
-        # Only provide options for Z if more than 2 components are selected.
         z_options = options if pca_count > 2 else []
         return options, options, z_options
 
-    # Toggle visibility of the Z-axis dropdown div based on PCA count.
     @app.callback(
         Output("zaxis-div", "style"),
         Input("pca-count", "value")
@@ -103,7 +100,6 @@ def create_dash_app(df_dict, directory):
         else:
             return {"display": "none"}
 
-    # Update the scatter plot based on selected axes and PCA count.
     @app.callback(
         Output("scatter-plot", "figure"),
         Output("current-yaxis", "data"),
@@ -115,7 +111,6 @@ def create_dash_app(df_dict, directory):
     def update_scatter(xaxis, yaxis, zaxis, pca_count):
         dff = df_dict[pca_count]
         if pca_count > 2:
-            # Create a 3D scatter plot if more than 2 components are available.
             fig = px.scatter_3d(
                 dff,
                 x=xaxis,
@@ -127,7 +122,6 @@ def create_dash_app(df_dict, directory):
                 labels={"color": "Cluster"}
             )
         else:
-            # Create a 2D scatter plot for 2 components.
             fig = px.scatter(
                 dff,
                 x=xaxis,
@@ -161,7 +155,6 @@ def create_dash_app(df_dict, directory):
         bbox = hover_data["bbox"]
         file_name = hover_data["customdata"]
         png_file = file_name + ".png"
-        # Construct the full file system path for checking file existence.
         image_path = os.path.join(directory, "assets", png_file)
         if not os.path.exists(image_path):
             return False, dash.no_update, dash.no_update, dash.no_update
@@ -170,7 +163,6 @@ def create_dash_app(df_dict, directory):
             html.Img(src=f"/assets/{png_file}", style={"width": "200px"}),
         ])
         y = hover_data["y"]
-        # (Using a dummy median value for tooltip direction here.)
         median_val = 0
         direction = "bottom" if y > median_val else "top"
 
@@ -193,7 +185,6 @@ def create_dash_app(df_dict, directory):
         if file_name not in stored_points:
             stored_points.append(file_name)
 
-        # Keep only the last two selected images.
         if len(stored_points) > 2:
             stored_points = stored_points[-2:]
 
@@ -209,29 +200,22 @@ def create_dash_app(df_dict, directory):
     def update_images(selected_files):
         if len(selected_files) == 0:
             return "", {"display": "none"}, "", {"display": "none"}
-        print(selected_files)
-
         img1_src = f"/assets/{selected_files[0]}.png" if len(selected_files) > 0 else ""
         img2_src = f"/assets/{selected_files[1]}.png" if len(selected_files) > 1 else ""
-        print(img1_src)
-
         img1_style = {"width": "100%", "display": "block"} if img1_src else {"display": "none"}
         img2_style = {"width": "100%", "display": "block"} if img2_src else {"display": "none"}
-
         return img1_src, img1_style, img2_src, img2_style
 
     return app
 
 # --- Initialize the app ---
 
-from pathlib import Path
-
 script_path = Path(__file__).resolve()
 project_root = script_path.parents[0]
 
 print(project_root)
 
-# Load different CSV files for each PCA component count.
+# Load CSV files from the assets folder.
 df_2 = pd.read_csv(project_root / "assets/pcaDF_2.csv")
 df_3 = pd.read_csv(project_root / "assets/pcaDF_3.csv")
 df_4 = pd.read_csv(project_root / "assets/pcaDF_4.csv")
@@ -242,7 +226,6 @@ df_6 = pd.read_csv(project_root / "assets/pcaDF_6.csv")
 for df in [df_2, df_3, df_4, df_5, df_6]:
     df["file_name"] = df["file_name"].str[15:]
 
-# Store the dataframes in a dictionary keyed by the number of PCA components.
 df_dict = {
     2: df_2,
     3: df_3,
@@ -253,8 +236,50 @@ df_dict = {
 
 app = create_dash_app(df_dict, project_root)
 
+# --- Add Simple Password Authentication ---
+# Save the main layout (the protected content)
+main_layout = app.layout
+
+# Define a simple login layout.
+login_layout = html.Div([
+    html.H2("Please Log In"),
+    dcc.Input(id='password-input', type='password', placeholder='Enter Password'),
+    html.Button("Submit", id='login-button'),
+    html.Div(id='login-output', style={'color': 'red'})
+], style={'text-align': 'center', 'margin-top': '100px'})
+
+# Override the app layout to include a login mechanism.
+app.layout = html.Div([
+    dcc.Location(id='url', refresh=False),
+    dcc.Store(id='logged-in', storage_type='session'),
+    html.Div(id='page-content')
+])
+
+# Callback to render the appropriate page based on login state.
+@app.callback(
+    Output('page-content', 'children'),
+    Input('logged-in', 'data')
+)
+def render_page(logged_in):
+    if logged_in:
+        return main_layout
+    return login_layout
+
+# Callback to check the password.
+@app.callback(
+    Output('logged-in', 'data'),
+    Output('login-output', 'children'),
+    Input('login-button', 'n_clicks'),
+    State('password-input', 'value'),
+    prevent_initial_call=True
+)
+def verify_password(n_clicks, password):
+    if password == "NASA_Boiling":
+        return True, ""
+    return dash.no_update, "Incorrect password. Please try again."
+
 # Export the underlying Flask server for production
 server = app.server
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)

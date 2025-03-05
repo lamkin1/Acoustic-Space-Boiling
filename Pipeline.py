@@ -87,9 +87,6 @@ def main():
     # Define the expected number of arguments
     expected_args = 2
 
-    # Define number of clusters
-    n_clusters = 3
-
     try:
         opts, args = getopt.getopt(sys.argv[1:], "v")
     except getopt.GetoptError as err:
@@ -142,23 +139,24 @@ def main():
 
         print("Completed PCA")
 
-        # Apply Clustering (KMeans as of now)
-        clustered_df = apply_clustering(pca_data, 6, n_clusters = n_clusters)
+        for num_clusters in range(2,8):
+            # Apply Clustering (KMeans as of now)
+            clustered_df = apply_clustering(pca_data, 6, n_clusters = num_clusters)
 
-        print("Completed Clustering")
+            print("Completed Clustering")
 
-        # Add Filename to final clustered dataframe
-        clustered_df["file_name"] = file_names
+            # Add Filename to final clustered dataframe
+            clustered_df["file_name"] = file_names
 
-        # Convert to csv file
-        output_path_df, output_path_loadings = os.path.join(output_dir, f'results_{n_clusters}_clusters.csv'), os.path.join(output_dir, f'loadings_{n_clusters}_clusters.csv')
-        clustered_df.to_csv(output_path_df, index=False) #save it to the output directory
+            # Convert to csv file
+            output_path_df, output_path_loadings = os.path.join(output_dir, f'results_{num_clusters}_clusters.csv'), os.path.join(output_dir, f'loadings.csv')
+            clustered_df.to_csv(output_path_df, index=False) #save it to the output directory
 
-        loadings_matrix.reset_index(inplace=True)
-        loadings_matrix.rename(columns={'index': 'Feature'}, inplace=True)
-        loadings_matrix.to_csv(output_path_loadings, index=False)
-        
-        print(f"Scaled data saved to: {output_path_df} & {output_path_loadings}")
+            loadings_matrix.reset_index(inplace=True)
+            loadings_matrix.rename(columns={'index': 'Feature'}, inplace=True)
+            loadings_matrix.to_csv(output_path_loadings, index=False)
+            
+            print(f"Scaled data saved to: {output_path_df} & {output_path_loadings}")
 
     except Exception as e: #more general error handling.
         print(f"Error: Runetime error. {e}")

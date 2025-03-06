@@ -56,18 +56,35 @@ def compute_spectral_bandwidth(signal_data, fs=1000):
     return bandwidth
 
 
-def extract_peaks(file):
+def clamp(value, lower=0.015, upper=0.1):
+    return max(lower, min(value, upper))
+
+
+def get_peaks(acceleration0):
+    """
+    acceleration0: accelerometer data, measured to the 10,000th of a second
+    Returns: x and y coordinates of peaks
+    """
+    percentile = np.percentile(acceleration0, 99.5)
+    percent_of_max = 0.1*np.max(acceleration0)
+
+    height = clamp(max(percentile, percent_of_max))
+    distance = 350 + 5 / height
+
+    x, y = signal.find_peaks(acceleration0, distance=distance, height=height)
+    x = x / 10000
+    y = y["peak_heights"]  # unpack data
+    return x, y
+
+
+def extract_peak_features(file):
     """
     Extracts peak-related features from the signal.
     """
     data = pd.read_csv(file, index_col="Time")
     _, signal_data = unpack_data(data)
 
-    height = max(np.percentile(signal_data, 95), 0.01)
-    distance = 300 + 5 / height
-
-    peaks, _ = signal.find_peaks(signal_data, distance=distance, height=height)
-    peaks = peaks / 10000  # Convert to time domain
+    peaks, magnitude = get_peaks(signal_data)
 
     if len(peaks) <= 2:
         return None
@@ -85,8 +102,7 @@ def extract_peaks(file):
     avg_peaks_per_second = np.mean(peaks) if len(peaks) > 0 else np.nan
     sum_peak_magnitude = np.sum(magnitude) if len(magnitude) > 0 else np.nan
 
-    threshold = height
-    percent_time_above_threshold = np.mean(signal_data > threshold)
+    percent_time_above_threshold = np.mean(signal_data > min(magnitude))
 
     return {
         "file_name": file,
@@ -121,7 +137,7 @@ def extract_all_features(file):
     }
 
     # Extract peak-based features
-    peak_features = extract_peaks(file)
+    peak_features = extract_peak_features(file)
     if peak_features:
         features.update(peak_features)
 

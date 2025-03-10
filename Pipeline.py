@@ -6,7 +6,7 @@ import getopt
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
-
+from datetime import datetime
 
 def preprocess(data):
     """
@@ -75,6 +75,28 @@ def apply_clustering(pcaDF: pd.DataFrame, num_components, n_clusters = 3, ):
 
     return pcaDF
     
+def create_date_from_string(data):
+    """Creates a datetime object from a list of strings representing date components."""
+    try:
+        # Extract relevant components from the list
+        data_list = data.split()
+
+        year = int(data_list[6])
+
+        month_str = data_list[4]
+
+        day = int(data_list[5].strip(","))  # Remove comma from day string
+
+
+        # Convert month abbreviation to number
+        month = datetime.strptime(month_str, "%b").month
+
+        # Create the datetime object
+        date_obj = datetime(year, month, day).date()
+        return date_obj
+    except (ValueError, IndexError) as e:
+        print(f"Error creating date from list: {e}")
+        return None
 
 def main():
     """
@@ -147,6 +169,8 @@ def main():
 
             # Add Filename to final clustered dataframe
             clustered_df["file_name"] = file_names
+            clustered_df['date'] = clustered_df['file_name'].apply(create_date_from_string)
+            clustered_df.sort_values(by = "date", inplace=True)
 
             # Convert to csv file
             output_path_df, output_path_loadings = os.path.join(output_dir, f'results_{num_clusters}_clusters.csv'), os.path.join(output_dir, f'loadings.csv')

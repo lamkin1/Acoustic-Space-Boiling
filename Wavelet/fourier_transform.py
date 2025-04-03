@@ -3,7 +3,7 @@ import sys
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.fftpack import fft, fftfreq
+from scipy.fft import dct, idct, fftfreq
 from scipy.signal import butter, filtfilt, welch, find_peaks
 from scipy.stats import entropy
 
@@ -47,7 +47,7 @@ def process_file(input_file, output_feature_folder, output_plot_folder, column_i
     filtered_accel = butter_highpass_filter(accel, highpass_cutoff, sample_rate)
 
     # Fast Fourier Transformation calc - Used bc comp faster than FDT and boiling regimes are constant per run 
-    fft_values = fft(filtered_accel)
+    fft_values = dct(x, type=2)
     power_spectrum = np.abs(fft_values[:N//2])  # Magnitude
     log_power_spectrum = np.log10(power_spectrum + 1)
 

@@ -155,7 +155,8 @@ def process_directory(directory_name="Data/After_May/"):
 
     # Convert to DataFrame
     feature_df = pd.DataFrame(extracted_features)
-    feature_df.dropna(inplace=True)  # remove runs with 2 or fewer peaks
+    #feature_df.dropna(inplace=True)  # remove runs with 2 or fewer peaks
+    feature_df.fillna(0, inplace=True) # replace all na with 0s
     feature_df.to_csv("features.csv", index=False)
     print(f"Features saved successfully to 'features.csv'!")
 

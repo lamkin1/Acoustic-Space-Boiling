@@ -10,6 +10,7 @@ from collections import defaultdict
 from sklearn.cluster import DBSCAN
 from math import sqrt
 from scipy.stats import norm
+from scipy.stats import binom
 
 
 # Feature Extraction Functions
@@ -201,20 +202,27 @@ def pmm_clustering(diffs, random_state=0):
     - 'sd': standard deviation of the cluster
     - 'n': number of points in the cluster
     """
-    ## EVALUATE
     if len(diffs) < 2:
         return {}  # Return empty dict if not enough data points
 
     min_components = 1
-    max_components = min(50, max(2, len(diffs) // 5))
+    max_components = min(50, max(2, len(diffs) // 2))
+    print(f"Trying up to {max_components} components")
 
     X = np.array(diffs).reshape(-1, 1)
     bics, models = [], []
 
     for k in range(min_components, max_components + 1):
-        model = GaussianMixture(n_components=k, random_state=random_state).fit(X)
-        bics.append(model.bic(X))
-        models.append(model)
+        try:
+            model = GaussianMixture(n_components=k, random_state=random_state).fit(X)
+            bics.append(model.bic(X))
+            models.append(model)
+        except ValueError:
+            # Skip if not enough samples for k components
+            continue
+
+    if not bics:  # If no models were successfully fit
+        return {}
 
     # Select best model
     best_index = np.argmin(bics)
@@ -252,7 +260,10 @@ def pmm_clustering(diffs, random_state=0):
     return clusters
 
 
-def count_hits_with_optimal_start(x, delta_t, sd, n, confidence=0.95, max_starts=10, extra_margin=0.00405):
+def count_hits_with_optimal_start(
+    x, delta_t, sd, n, confidence=0.95, max_starts=10, extra_margin=0.00405
+):
+
     x = np.array(x)
     se = sd / np.sqrt(n)
     z = norm.ppf(1 - (1 - confidence) / 2)
@@ -302,14 +313,32 @@ def add_hit_data(clusters, x):
 
 
 def filter_delta_ts(hit_data, alpha=0.05, p_null=0.3):
-    return {
-        k: v for k, v in hit_data.items()
-        ## EVALUATE
-        if v["tries"] >= 1 and binomtest(v["hits"], v["tries"], p_null, alternative="greater").pvalue < alpha
-    }
+    filtered = {}
+    for k, v in hit_data.items():
+        hits = v["hits"]
+        tries = v["tries"]
+
+        # Compute P(X > hits)
+        p_value = 1 - binom.cdf(hits, tries, p_null)
+
+        if p_value < alpha:
+            filtered[k] = v
+    return filtered
 
 
 def prob_integer_multiple(base, sd_base, n_base, candidate, sd_candidate, n_candidate):
+    """
+    Computes the probability that the candidate mean is an integer multiple of the base mean,
+    using propagated standard error.
+
+    Parameters:
+    - base, sd_base, n_base: mean, std, and sample size of base cluster
+    - candidate, sd_candidate, n_candidate: same for candidate cluster
+
+    Returns:
+    - best_k: closest integer multiple
+    - probability: two-tailed probability that ratio ≈ k
+    """
     ratio = candidate / base
     best_k = round(ratio)
 
@@ -358,12 +387,6 @@ def remove_integer_multiples(clusters_dict, p_thresh=0.05):
 def number_of_boilings(peaks):
     diffs = get_diffs(peaks)
     clusters = pmm_clustering(diffs)
-
-    ## EVALUATE
-    if not clusters:  # If no clusters found
-        return 0
-
-
     clusters = add_hit_data(clusters, peaks)
     filtered_clusters = filter_delta_ts(clusters)
     base_diffs = remove_integer_multiples(filtered_clusters)

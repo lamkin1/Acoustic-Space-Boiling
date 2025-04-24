@@ -16,6 +16,26 @@ def create_dash_app(results_dict, directory):
     """
     app = dash.Dash(__name__)
 
+    # Load human labels
+    labels_df = pd.read_csv(directory / "labels.csv")
+    labels_df["file_name"] = labels_df["file_name"].str.strip()
+    labels_df["file_name"] = "MATLAB " + labels_df["file_name"]
+
+    # Create mapping for human labels
+    label_mapping = {
+        1: "Single Rhythmic",
+        2: "Double Rhythmic",
+        3: "Random",
+        4: "Rhythmic with Climax",
+        5: "Noise",
+        6: "1 Rhythmic with Random",
+        7: "Triple Rhythmic",
+        8: "Transition"
+    }
+
+    # Add descriptive labels to the dataframe
+    labels_df["label_desc"] = labels_df["label"].map(label_mapping)
+
     # Dropdown options for number of PCA components (2 to 6)
     pca_count_options = [{'label': str(n), 'value': n} for n in range(2, 7)]
     default_pca_count = 2
@@ -23,6 +43,12 @@ def create_dash_app(results_dict, directory):
     # Dropdown options for number of clusters (results files exist for 2 to 7 clusters)
     clusters_options = [{'label': str(n), 'value': n} for n in range(2, 8)]
     default_clusters = 2
+
+    # Visualization mode options
+    mode_options = [
+        {'label': 'Clustering Results', 'value': 'clustering'},
+        {'label': 'Human Labels', 'value': 'labels'}
+    ]
 
     # Initial axis options (for 2 PCA components)
     axis_options = [{'label': f'PCA{i}', 'value': f'PCA{i}'} for i in range(1, default_pca_count + 1)]
@@ -51,8 +77,16 @@ def create_dash_app(results_dict, directory):
 
     # Main app layout, including both dropdowns for PCA components and clusters.
     app.layout = html.Div([
-        # First row: PCA and Clusters dropdowns
+        # First row: PCA, Clusters, and Mode dropdowns
         html.Div([
+            html.Div([
+                html.Label("Visualization Mode:"),
+                dcc.Dropdown(
+                    id="viz-mode",
+                    options=mode_options,
+                    value="clustering"
+                )
+            ], style={"width": "30%", "padding": "10px"}),
             html.Div([
                 html.Label("Number of PCA Components:"),
                 dcc.Dropdown(
@@ -60,7 +94,7 @@ def create_dash_app(results_dict, directory):
                     options=pca_count_options,
                     value=default_pca_count
                 )
-            ], style={"width": "45%", "padding": "10px"}),
+            ], style={"width": "30%", "padding": "10px"}),
             html.Div([
                 html.Label("Number of Clusters:"),
                 dcc.Dropdown(
@@ -68,7 +102,7 @@ def create_dash_app(results_dict, directory):
                     options=clusters_options,
                     value=default_clusters
                 )
-            ], style={"width": "45%", "padding": "10px"})
+            ], style={"width": "30%", "padding": "10px"})
         ], style={"display": "flex", "justify-content": "space-around"}),
 
         # Second row: Axis dropdowns
@@ -127,7 +161,7 @@ def create_dash_app(results_dict, directory):
         else:
             return {"display": "none"}
 
-    # Update the scatter plot based on selected axes, PCA components, and clusters.
+    # Update the scatter plot based on selected axes, PCA components, clusters, and visualization mode.
     @app.callback(
         Output("scatter-plot", "figure"),
         Output("current-yaxis", "data"),
@@ -135,33 +169,43 @@ def create_dash_app(results_dict, directory):
         Input("yaxis", "value"),
         Input("zaxis", "value"),
         Input("pca-count", "value"),
-        Input("clusters-count", "value")
+        Input("clusters-count", "value"),
+        Input("viz-mode", "value")
     )
-    def update_scatter(xaxis, yaxis, zaxis, pca_count, clusters_count):
+    def update_scatter(xaxis, yaxis, zaxis, pca_count, clusters_count, viz_mode):
         # Retrieve the appropriate DataFrame based on the number of clusters.
         dff = results_dict[clusters_count]
-        # Determine which cluster column to use based on the selected number of PCA components.
-        cluster_col = f'Cluster_{pca_count}_PCs'
+
+        # Merge with human labels if needed
+        if viz_mode == "labels":
+            dff = dff.merge(labels_df, on="file_name", how="left")
+            color_col = "label_desc"
+            color_title = "Regime"
+        else:
+            cluster_col = f'Cluster_{pca_count}_PCs'
+            color_col = cluster_col
+            color_title = "Cluster"
+
         if pca_count > 2:
             fig = px.scatter_3d(
                 dff,
                 x=xaxis,
                 y=yaxis,
                 z=zaxis,
-                color=dff[cluster_col].astype(str),
+                color=dff[color_col].astype(str),
                 hover_data=["file_name"],
-                category_orders={cluster_col: sorted(dff[cluster_col].unique())},
-                labels={"color": "Cluster"}
+                category_orders={color_col: sorted(dff[color_col].astype(str).unique())},
+                labels={"color": color_title}
             )
         else:
             fig = px.scatter(
                 dff,
                 x=xaxis,
                 y=yaxis,
-                color=dff[cluster_col].astype(str),
+                color=dff[color_col].astype(str),
                 hover_data=["file_name"],
-                category_orders={cluster_col: sorted(dff[cluster_col].unique())},
-                labels={"color": "Cluster"}
+                category_orders={color_col: sorted(dff[color_col].astype(str).unique())},
+                labels={"color": color_title}
             )
         fig.update_traces(
             marker=dict(size=8),

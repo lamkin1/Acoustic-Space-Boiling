@@ -11,18 +11,10 @@ from sklearn.cluster import DBSCAN
 from math import sqrt
 from scipy.stats import norm
 from scipy.stats import binom
+from utils import *
 
 
 # Feature Extraction Functions
-def unpack_data(data):
-    """
-    Unpacks dataframe into time and signal
-    """
-    time = data.index
-    signal = data.iloc[:, 0]
-    return time, signal
-
-
 def compute_spectral_entropy(signal_data, fs=1000):
     """
     Compute spectral entropy from the power spectral density (PSD).
@@ -61,28 +53,6 @@ def compute_spectral_bandwidth(signal_data, fs=1000):
     centroid = np.sum(freqs * psd) / np.sum(psd)
     bandwidth = np.sqrt(np.sum(psd * (freqs - centroid) ** 2) / np.sum(psd))
     return bandwidth
-
-
-def clamp(value, lower=0.015, upper=0.1):
-    return max(lower, min(value, upper))
-
-
-def get_peaks(acceleration0):
-    """
-    acceleration0: accelerometer data, measured to the 10,000th of a second
-    Returns: x and y coordinates of peaks
-    """
-    percentile = np.percentile(acceleration0, 99.5)
-    percent_of_max = 0.1*np.max(acceleration0)
-
-    height = clamp(max(percentile, percent_of_max))
-    distance = 350 + 5 / height
-
-    x, y = signal.find_peaks(acceleration0, distance=distance, height=height)
-    x = x / 10000
-    y = y["peak_heights"]  # unpack data
-    return x, y
-
 
 def extract_peak_features(file):
     """

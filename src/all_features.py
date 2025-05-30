@@ -1,17 +1,7 @@
-import numpy as np
-import pandas as pd
-import scipy.signal as signal
-import pywt
-import hurst
-from pathlib import Path
-from scipy.stats import binomtest
-from sklearn.mixture import GaussianMixture
-from collections import defaultdict
-from sklearn.cluster import DBSCAN
-from math import sqrt
-from scipy.stats import norm
-from scipy.stats import binom
+from src.multiple_boilings import get_boilings_data
 from utils import *
+from pathlib import Path
+
 
 
 # Feature Extraction Functions
@@ -59,7 +49,7 @@ def extract_peak_features(file):
     Extracts peak-related features from the signal.
     """
     data = pd.read_csv(file, index_col="Time")
-    _, signal_data = unpack_data(data)
+    time, signal_data = unpack_data(data)
 
     peaks, magnitude = get_peaks(signal_data)
 
@@ -81,6 +71,10 @@ def extract_peak_features(file):
 
     percent_time_above_threshold = np.mean(signal_data > min(magnitude))
 
+    run_length = len(time) / 10000
+    num_boilings, unused_peak_proportion = get_boilings_data(peaks, magnitude, run_length)
+
+
     return {
         "file_name": file,
         "std_dev_time_diff": std_dev_time_diff,
@@ -92,6 +86,8 @@ def extract_peak_features(file):
         "avg_peaks_per_second": avg_peaks_per_second,
         "sum_peak_magnitude": sum_peak_magnitude,
         "percent_time_above_threshold": percent_time_above_threshold,
+        "num_boilings": num_boilings,
+        "unused_peak_proportion": unused_peak_proportion
         # "mean_post_peak_magnitude": mean_post_peak_magnitude,
         # "std_dev_post_peak_magnitude": std_dev_post_peak_magnitude
     }
@@ -120,10 +116,6 @@ def extract_all_features(file):
 
         # Calculate number of boilings using the peaks
         peaks, _ = get_peaks(signal_data)
-        if len(peaks) > 2:  # Only calculate if we have enough peaks
-            features["number_of_boilings"] = number_of_boilings(peaks)
-        else:
-            features["number_of_boilings"] = 0
 
     return features
 
@@ -132,7 +124,8 @@ def process_directory(directory_name="Data/After_May/"):
     """
     Processes all CSV files in a directory and extracts all features from each.
     """
-    directory = Path(directory_name)
+    script_dir = Path(__file__).resolve().parent
+    directory = (script_dir / ".." / directory_name).resolve()
     file_names = [f for f in directory.iterdir() if f.suffix == '.csv']
 
     extracted_features = [extract_all_features(file) for file in file_names]
@@ -143,224 +136,6 @@ def process_directory(directory_name="Data/After_May/"):
     feature_df.fillna(0, inplace=True) # replace all na with 0s
     feature_df.to_csv("features.csv", index=False)
     print(f"Features saved successfully to 'features.csv'!")
-
-
-def get_diffs(x):
-    min_tries = 3
-    max_allowed_diff = (x[-1] - x[0]) / 2
-    max_diff = (x[-1] - x[0]) / (min_tries - 1)  # e.g., 3 tries = 2 intervals
-
-    # Use the tighter of the two constraints
-    cutoff = min(max_diff, max_allowed_diff)
-
-    diffs = []
-    for i in range(len(x) - 1):
-        for j in range(i + 1, len(x)):
-            d = float(x[j] - x[i])
-            if d > cutoff:
-                break  # since x is sorted, all future j will be worse
-            diffs.append(d)
-
-    return sorted(diffs)
-
-
-def pmm_clustering(diffs, random_state=0):
-    """
-    Performs GMM clustering on diffs and returns a dictionary of clusters sorted by mean.
-    Each cluster is represented as a dictionary with keys:
-    - 'mean': mean of the cluster
-    - 'sd': standard deviation of the cluster
-    - 'n': number of points in the cluster
-    """
-    if len(diffs) < 2:
-        return {}  # Return empty dict if not enough data points
-
-    min_components = 1
-    max_components = min(50, max(2, len(diffs) // 2))
-    print(f"Trying up to {max_components} components")
-
-    X = np.array(diffs).reshape(-1, 1)
-    bics, models = [], []
-
-    for k in range(min_components, max_components + 1):
-        try:
-            model = GaussianMixture(n_components=k, random_state=random_state).fit(X)
-            bics.append(model.bic(X))
-            models.append(model)
-        except ValueError:
-            # Skip if not enough samples for k components
-            continue
-
-    if not bics:  # If no models were successfully fit
-        return {}
-
-    # Select best model
-    best_index = np.argmin(bics)
-    best_model = models[best_index]
-    labels = best_model.predict(X)
-
-    # Group values by cluster label
-    cluster_data = defaultdict(list)
-    for val, label in zip(diffs, labels):
-        cluster_data[label].append(val)
-
-    # Summarize and sort clusters by mean
-    raw_clusters = []
-    for values in cluster_data.values():
-        values = np.array(values)
-        if len(values) < 2:
-            continue
-        raw_clusters.append({
-            'mean': np.mean(values),
-            'sd': np.std(values),
-            'n': len(values)
-        })
-
-    raw_clusters.sort(key=lambda x: x['mean'])
-
-    # Build final result
-    clusters = {
-        i: {
-            'mean': np.float64(c['mean']),
-            'sd': np.float64(c['sd']),
-            'n': int(c['n'])
-        } for i, c in enumerate(raw_clusters)
-    }
-
-    return clusters
-
-
-def count_hits_with_optimal_start(
-    x, delta_t, sd, n, confidence=0.95, max_starts=10, extra_margin=0.00405
-):
-
-    x = np.array(x)
-    se = sd / np.sqrt(n)
-    z = norm.ppf(1 - (1 - confidence) / 2)
-    margin = z * se + extra_margin
-
-    best_hits = []
-    best_tries = 0
-    best_anchor = x[0]
-
-    for i in range(min(max_starts, len(x))):
-        anchor = x[i]
-        hit_indices = []
-        tries = 0
-        last_hit = anchor
-
-        while True:
-            t = last_hit + delta_t
-            if t > x[-1]:
-                break
-
-            # Check for hit within margin
-            candidates = np.where((x >= t - margin) & (x <= t + margin))[0]
-            if candidates.size > 0:
-                hit_idx = candidates[0]
-                hit_indices.append(hit_idx)
-                last_hit = x[hit_idx]  # Recenter from hit
-            else:
-                last_hit = t  # No hit — continue from expected
-
-            tries += 1
-
-        if len(hit_indices) > len(best_hits):
-            best_hits = hit_indices
-            best_tries = tries
-            best_anchor = anchor
-
-    return delta_t, best_anchor, len(best_hits), best_tries
-
-
-def add_hit_data(clusters, x):
-    for id, cluster in clusters.items():
-        delta_t, anchor, hits, tries = count_hits_with_optimal_start(x, cluster["mean"], cluster["sd"], cluster["n"])
-        cluster["anchor"] = anchor
-        cluster["hits"] = hits
-        cluster["tries"] = tries
-    return clusters
-
-
-def filter_delta_ts(hit_data, alpha=0.05, p_null=0.3):
-    filtered = {}
-    for k, v in hit_data.items():
-        hits = v["hits"]
-        tries = v["tries"]
-
-        # Compute P(X > hits)
-        p_value = 1 - binom.cdf(hits, tries, p_null)
-
-        if p_value < alpha:
-            filtered[k] = v
-    return filtered
-
-
-def prob_integer_multiple(base, sd_base, n_base, candidate, sd_candidate, n_candidate):
-    """
-    Computes the probability that the candidate mean is an integer multiple of the base mean,
-    using propagated standard error.
-
-    Parameters:
-    - base, sd_base, n_base: mean, std, and sample size of base cluster
-    - candidate, sd_candidate, n_candidate: same for candidate cluster
-
-    Returns:
-    - best_k: closest integer multiple
-    - probability: two-tailed probability that ratio ≈ k
-    """
-    ratio = candidate / base
-    best_k = round(ratio)
-
-    # Use standard error (not just std dev)
-    se_base = sd_base / sqrt(n_base)
-    se_candidate = sd_candidate / sqrt(n_candidate)
-
-    # Error propagation for ratio
-    ratio_se = ratio * sqrt((se_candidate / candidate)**2 + (se_base / base)**2)
-
-    z = abs(ratio - best_k) / ratio_se
-    probability = 2 * (1 - norm.cdf(z))  # two-tailed
-
-    return probability
-
-
-def remove_integer_multiples(clusters_dict, p_thresh=0.05):
-    cluster_ids = list(clusters_dict.keys())
-    keep = {cid: True for cid in cluster_ids}
-
-    for i in range(len(cluster_ids) - 1):
-        ci_id = cluster_ids[i]
-        if not keep[ci_id]:
-            continue
-        for j in range(i + 1, len(cluster_ids)):
-            cj_id = cluster_ids[j]
-            if not keep[cj_id]:
-                continue
-
-            ci = clusters_dict[ci_id]
-            cj = clusters_dict[cj_id]
-
-            p = prob_integer_multiple(
-                base=ci["mean"], sd_base=ci["sd"], n_base=ci["n"],
-                candidate=cj["mean"], sd_candidate=cj["sd"], n_candidate=cj["n"]
-            )
-
-            if p > p_thresh:
-                keep[cj_id] = False
-
-    # Return a new dictionary with only the clusters to keep
-    pruned = {cid: clusters_dict[cid] for cid in cluster_ids if keep[cid]}
-    return pruned
-
-
-def number_of_boilings(peaks):
-    diffs = get_diffs(peaks)
-    clusters = pmm_clustering(diffs)
-    clusters = add_hit_data(clusters, peaks)
-    filtered_clusters = filter_delta_ts(clusters)
-    base_diffs = remove_integer_multiples(filtered_clusters)
-    return len(base_diffs)
 
 
 if __name__ == "__main__":

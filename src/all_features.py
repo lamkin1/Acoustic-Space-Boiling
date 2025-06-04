@@ -1,6 +1,7 @@
 from src.multiple_boilings import get_boilings_data
 from utils import *
 from pathlib import Path
+import time
 
 
 
@@ -74,9 +75,12 @@ def extract_peak_features(file):
     run_length = len(time) / 10000
     num_boilings, unused_peak_proportion = get_boilings_data(peaks, magnitude, run_length)
 
+    # Convert to relative file name for logging/storage
+    project_root = Path(__file__).resolve().parent.parent
+    rel_file = file.relative_to(project_root)
 
     return {
-        "file_name": file,
+        "file_name": str(rel_file),
         "std_dev_time_diff": std_dev_time_diff,
         "mean_time_diff": mean_time_diff,
         "median_time_diff": median_time_diff,
@@ -100,43 +104,49 @@ def extract_all_features(file):
     data = pd.read_csv(file, index_col="Time")
     _, signal_data = unpack_data(data)
 
-    # Extract spectral and statistical features
+    # Convert to relative file name for logging/storage
+    project_root = Path(__file__).resolve().parent.parent
+    rel_file = file.relative_to(project_root)
+
     features = {
-        "file_name": file,
+        "file_name": str(rel_file),
         "spectral_entropy": compute_spectral_entropy(signal_data),
         "spectral_centroid": compute_spectral_centroid(signal_data),
         "spectral_flatness": compute_spectral_flatness(signal_data),
         "spectral_bandwidth": compute_spectral_bandwidth(signal_data)
     }
 
-    # Extract peak-based features
     peak_features = extract_peak_features(file)
     if peak_features:
         features.update(peak_features)
 
-        # Calculate number of boilings using the peaks
+        # You still use full signal data here
         peaks, _ = get_peaks(signal_data)
 
     return features
 
 
-def process_directory(directory_name="Data/After_May/"):
+
+def process_directory(directory_name="Data/After_May/", verbose=False):
     """
     Processes all CSV files in a directory and extracts all features from each.
     """
     script_dir = Path(__file__).resolve().parent
     directory = (script_dir / ".." / directory_name).resolve()
-    file_names = [f for f in directory.iterdir() if f.suffix == '.csv']
 
-    extracted_features = [extract_all_features(file) for file in file_names]
+    extracted_features = []
+    for f in directory.iterdir():
+        if f.suffix == '.csv':
+            start = time.time()
+            extracted_features.append(extract_all_features(f))
+            if verbose:
+                print(f"Extracted features from {f} in {round(time.time() - start, 2)} seconds.")
 
-    # Convert to DataFrame
     feature_df = pd.DataFrame(extracted_features)
-    #feature_df.dropna(inplace=True)  # remove runs with 2 or fewer peaks
-    feature_df.fillna(0, inplace=True) # replace all na with 0s
+    feature_df.fillna(0, inplace=True)
     feature_df.to_csv("features.csv", index=False)
-    print(f"Features saved successfully to 'features.csv'!")
+    print("Features saved successfully to 'features.csv'!")
 
 
 if __name__ == "__main__":
-    process_directory()
+    process_directory(verbose=True)

@@ -387,6 +387,8 @@ def plot_candidate_peak_sets(acceleration0, peaks, candidates):
 def get_boilings_data(x, y, run_length, verbose=False):
     if len(x) < 3: # require at least 3 peaks
         return 0, 0
+    if len(x) > 300: # unreasonable run time; will yield many regimes
+        return 3, 0
     candidates = Candidates(x, y, run_length)
     candidates.detect_regimes(verbose=verbose)
     num_boilings = candidates.get_num_regimes()

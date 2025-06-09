@@ -7,17 +7,19 @@ import os
 import re
 from sklearn.metrics import adjusted_rand_score
 
-def jaccard_similarity_matrix(true_labels, cluster_labels):
+def similarity_matrix(true_labels, cluster_labels, metric="jaccard"):
     """
-    Computes a Jaccard similarity matrix between true class labels and cluster labels.
+    Computes a similarity matrix between true class labels and cluster labels
+    using the specified metric: 'jaccard' or 'ss' (Szymkiewicz–Simpson).
 
     Parameters:
         true_labels (array-like): Ground truth class labels.
         cluster_labels (array-like): Cluster labels (e.g., from KMeans).
+        metric (str): Similarity metric to use, 'jaccard' or 'ss'.
 
     Returns:
-        jaccard_matrix (ndarray): Matrix of shape (n_classes, n_clusters), where each element [i,j]
-                                   is the Jaccard similarity between class i and cluster j.
+        similarity_matrix (ndarray): Matrix of shape (n_classes, n_clusters),
+                                     where [i,j] is the similarity between class i and cluster j.
     """
     true_labels = np.array(true_labels)
     cluster_labels = np.array(cluster_labels)
@@ -25,41 +27,52 @@ def jaccard_similarity_matrix(true_labels, cluster_labels):
     unique_classes = np.unique(true_labels)
     unique_clusters = np.unique(cluster_labels)
 
-    jaccard_matrix = np.zeros((len(unique_classes), len(unique_clusters)))
+    sim_matrix = np.zeros((len(unique_classes), len(unique_clusters)))
 
     for i, c in enumerate(unique_classes):
         for j, k in enumerate(unique_clusters):
-            y_true_bin = (true_labels == c).astype(int)
-            y_cluster_bin = (cluster_labels == k).astype(int)
-            jaccard_matrix[i, j] = jaccard_score(y_true_bin, y_cluster_bin)
+            y_true = (true_labels == c)
+            y_pred = (cluster_labels == k)
 
-    return jaccard_matrix
+            intersection = np.logical_and(y_true, y_pred).sum()
+            union = np.logical_or(y_true, y_pred).sum()
+            min_size = min(y_true.sum(), y_pred.sum())
+
+            if metric == "jaccard":
+                sim_matrix[i, j] = intersection / union if union != 0 else 0.0
+            elif metric == "ss":
+                sim_matrix[i, j] = intersection / min_size if min_size != 0 else 0.0
+            else:
+                raise ValueError("Metric must be 'jaccard' or 'ss' (Szymkiewicz–Simpson)")
+
+    return sim_matrix
 
 
-
-def plot_jaccard_similarity(true_labels, cluster_labels, title="Jaccard Similarity Matrix"):
+def plot_similarity_matrix(true_labels, cluster_labels, metric="jaccard", title=None):
     """
-    Computes and plots the Jaccard similarity matrix between class and cluster labels.
+    Computes and plots a similarity matrix between class and cluster labels.
 
     Parameters:
         true_labels (array-like): Ground truth class labels.
         cluster_labels (array-like): Cluster labels (e.g., from KMeans).
-        title (str): Title for the heatmap plot.
+        metric (str): Similarity metric to use, 'jaccard' or 'ss'.
+        title (str): Optional title for the plot.
     """
-    jaccard_matrix = jaccard_similarity_matrix(true_labels, cluster_labels)
+    sim_matrix = similarity_matrix(true_labels, cluster_labels, metric=metric)
 
     # Label rows and columns
     class_labels = [f"Class {i}" for i in np.unique(true_labels)]
-    cluster_labels = [f"Cluster {j}" for j in np.unique(cluster_labels)]
+    cluster_labels_display = [f"Cluster {j}" for j in np.unique(cluster_labels)]
 
     plt.figure(figsize=(8, 6))
-    sns.heatmap(jaccard_matrix, annot=True, fmt=".2f", cmap="Blues",
-                xticklabels=cluster_labels, yticklabels=class_labels)
+    sns.heatmap(sim_matrix, annot=True, fmt=".2f", cmap="Blues",
+                xticklabels=cluster_labels_display, yticklabels=class_labels)
     plt.xlabel("Clusters")
     plt.ylabel("True Classes")
-    plt.title(title)
+    plt.title(title or f"{metric.capitalize()} Similarity Matrix")
     plt.tight_layout()
     plt.show()
+
 
 
 
@@ -101,6 +114,6 @@ print(len(df_labels), len(df_clusters), len(full))
 true_labels = full["label"].values
 cluster_labels = full[f"Cluster_{n_pcs}_PCs"].values
 
-plot_jaccard_similarity(true_labels, cluster_labels)
+plot_similarity_matrix(true_labels, cluster_labels, metric="ss")
 
 print(adjusted_rand_score(true_labels, cluster_labels))

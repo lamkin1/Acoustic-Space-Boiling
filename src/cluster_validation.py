@@ -5,6 +5,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import os
 import re
+from sklearn.metrics import adjusted_rand_score
 
 def jaccard_similarity_matrix(true_labels, cluster_labels):
     """
@@ -101,3 +102,5 @@ true_labels = full["label"].values
 cluster_labels = full[f"Cluster_{n_pcs}_PCs"].values
 
 plot_jaccard_similarity(true_labels, cluster_labels)
+
+print(adjusted_rand_score(true_labels, cluster_labels))

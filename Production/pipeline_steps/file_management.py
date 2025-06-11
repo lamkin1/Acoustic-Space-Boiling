@@ -10,13 +10,15 @@ def move_new_runs_by_labels():
     app_resources_labels = os.path.join(os.path.dirname(__file__), '../app_resources/labels.csv')
     os.makedirs(labeled_dir, exist_ok=True)
     os.makedirs(unlabeled_dir, exist_ok=True)
-    # Find the first CSV in new_labels
-    csv_files = [f for f in os.listdir(labels_dir) if f.endswith('.csv')]
+    # Find the first CSV in new_labels, ignore .gitkeep
+    csv_files = [f for f in os.listdir(labels_dir) if f.endswith('.csv') and f != '.gitkeep']
     if len(csv_files) > 1:
         raise RuntimeError('Error: More than one file found in new_labels. Only one label CSV is allowed.')
     if not csv_files:
         print('No label.csv provided in new_labels. Moving all new_runs to unlabeled_runs.')
         for filename in os.listdir(src_dir):
+            if filename == '.gitkeep':
+                continue
             src_file = os.path.join(src_dir, filename)
             if not os.path.isfile(src_file):
                 continue
@@ -39,6 +41,8 @@ def move_new_runs_by_labels():
     print(f"New labels have been stored in app_resources/labels.csv. You may now remove the label csv from the new_labels folder.")
     labeled_files = set(df['file_name'].astype(str))
     for filename in os.listdir(src_dir):
+        if filename == '.gitkeep':
+            continue
         src_file = os.path.join(src_dir, filename)
         if not os.path.isfile(src_file):
             continue

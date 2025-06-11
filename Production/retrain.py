@@ -8,6 +8,8 @@ from pipeline_steps.feature_extraction import extract_all_features
 
 import pandas as pd
 import os
+from pathlib import Path
+import time
 
 def main():
     # Always sort new_runs into labeled_runs and unlabeled_runs
@@ -19,14 +21,13 @@ def main():
 
     # Step 1: Feature extraction for all runs
     data_dirs = ["labeled_runs", "unlabeled_runs"]
-    import glob
-    from pathlib import Path
+    
     all_files = []
     for d in data_dirs:
         dir_path = Path(d)
-        all_files.extend([str(f) for f in dir_path.glob('*.csv')])
+        all_files.extend([str(f) for f in dir_path.glob('*.csv') if f.name != '.gitkeep'])
     
-    import time
+    
     extracted_features = []
     for f in all_files:
         start = time.time()

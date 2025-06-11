@@ -10,6 +10,7 @@ from sklearn.tree import export_graphviz
 import graphviz
 import dtreeviz
 import os
+import seaborn as sns
 
 def load_and_merge_data(feature_path, label_path):
     X = pd.read_csv(feature_path)
@@ -130,18 +131,30 @@ def train_and_evaluate(X, y):
 
     return clf
 
-def plot_feature_importances(clf, feature_names):
+def plot_feature_importances(clf, feature_names, max_features=12):
     importances = clf.feature_importances_
     indices = np.argsort(importances)[::-1]
-
-    plt.figure(figsize=(12, 6))
-    plt.title("Feature Importances from Decision Tree", fontsize=16)
-    plt.bar(range(len(feature_names)), importances[indices], align="center")
-    plt.xticks(range(len(feature_names)), feature_names[indices], rotation=45, ha='right')
-    plt.ylabel("Importance")
+    
+    top_indices = indices[:max_features]
+    top_features = [feature_names[i].replace("_", " ") for i in top_indices]
+    top_importances = importances[top_indices]
+    
+    sns.set(style="whitegrid", font_scale=1.2, rc={"font.family": "serif"})
+    
+    plt.figure(figsize=(8, max(6, 0.4 * len(top_features))))
+    bars = plt.barh(range(len(top_features)), top_importances[::-1], color='steelblue')
+    plt.yticks(range(len(top_features)), top_features[::-1])
+    plt.xlabel("Feature Importance", fontsize=13)
+    plt.title("Top Feature Importances from Decision Tree", fontsize=14, pad=15)
+    
+    for i, bar in enumerate(bars):
+        width = bar.get_width()
+        plt.text(width + 0.01, bar.get_y() + bar.get_height()/2,
+                 f"{width:.3f}", va='center', fontsize=11)
+    
     plt.tight_layout()
+    plt.gca().invert_yaxis()
     plt.show()
-
 
 def plot_and_save_tree(clf, feature_names, class_names, png_path):
     plt.figure(figsize=(40, 20))
@@ -209,7 +222,7 @@ def main():
     print(f"Model saved to: {args.model_out}")
 
     # Visualizations
-   # plot_feature_importances(clf, X_clean.columns)
+    plot_feature_importances(clf, X_clean.columns)
     plot_and_save_tree(clf, X_clean.columns, list(map(str, label_encoder.classes_)), args.tree_png)
     save_tree_as_svg(clf, X_clean.columns, label_encoder.classes_, args.tree_svg)
     plot_and_save_dtreeviz(clf, X_clean, y_encoded, list(X_clean.columns), label_encoder.classes_, "dtreeviz.svg")

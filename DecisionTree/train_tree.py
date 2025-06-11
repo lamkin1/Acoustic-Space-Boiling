@@ -13,6 +13,7 @@ import os
 
 def load_and_merge_data(feature_path, label_path):
     X = pd.read_csv(feature_path)
+    print(X.columns)
     X['file_name'] = (
         X['file_name']
         .apply(lambda x: os.path.basename(str(x)))
@@ -21,8 +22,10 @@ def load_and_merge_data(feature_path, label_path):
     )
 
     y_df = pd.read_csv(label_path)
+    print(y_df.columns)
     y_df['file_name'] = (
         y_df['file_name']
+        .str.replace("MATLAB ", "", regex=False)
         .str.replace(".png", "", regex=False)
         .str.strip()
         .str.lower()
@@ -162,7 +165,7 @@ def save_tree_as_svg(clf, feature_names, class_names, out_svg_path):
     )
     graph = graphviz.Source(dot_data)
     svg_content = graph.pipe(format='svg').decode('utf-8')
-    with open(out_svg_path, 'w') as f:
+    with open(out_svg_path, 'w', encoding='utf-8') as f:
         f.write(svg_content)
 
 def plot_and_save_dtreeviz(clf, X, y, feature_names, class_names, out_svg_path):

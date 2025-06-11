@@ -6,17 +6,35 @@ import joblib
 from sklearn.tree import DecisionTreeClassifier, plot_tree
 from sklearn.model_selection import KFold
 from sklearn.metrics import precision_recall_fscore_support
+from sklearn.tree import export_graphviz
+import graphviz
+import dtreeviz
+import os
 
 def load_and_merge_data(feature_path, label_path):
     X = pd.read_csv(feature_path)
-
-    X['file_name'] = X['file_name'].str.replace("Data/After_May/MATLAB ", "", regex=False).str.strip().str.lower()
+    X['file_name'] = (
+        X['file_name']
+        .apply(lambda x: os.path.basename(str(x)))
+        .str.strip()
+        .str.lower()
+    )
 
     y_df = pd.read_csv(label_path)
-    y_df['file_name'] = y_df['filename'].str.replace("MATLAB ", "", regex=False).str.replace(".png", "", regex=False).str.strip().str.lower()
-    y_df = y_df.drop('filename', axis=1)
+    y_df['file_name'] = (
+        y_df['file_name']
+        .str.replace(".png", "", regex=False)
+        .str.strip()
+        .str.lower()
+    )
 
     df = pd.merge(X, y_df, on="file_name", how="inner")
+
+    if df.shape[0] == 0:
+        print("Sample features file names:", X['file_name'].head())
+        print("Sample labels file names:", y_df['file_name'].head())
+        raise ValueError("Merge resulted in 0 rows. Check file_name formatting.")
+
     print(f"Merged rows: {df.shape[0]}")
     return df
 
@@ -121,6 +139,7 @@ def plot_feature_importances(clf, feature_names):
     plt.tight_layout()
     plt.show()
 
+
 def plot_and_save_tree(clf, feature_names, class_names, png_path):
     plt.figure(figsize=(40, 20))
     plot_tree(clf, feature_names=feature_names, class_names=class_names, filled=True, rounded=True, fontsize=12)
@@ -130,25 +149,67 @@ def plot_and_save_tree(clf, feature_names, class_names, png_path):
     print(f"Tree saved to: {png_path}")
     plt.close()
 
+
+def save_tree_as_svg(clf, feature_names, class_names, out_svg_path):
+    dot_data = export_graphviz(
+        clf,
+        out_file=None,
+        feature_names=feature_names,
+        class_names=[str(cls) for cls in class_names],
+        filled=True,
+        rounded=True,
+        special_characters=True
+    )
+    graph = graphviz.Source(dot_data)
+    svg_content = graph.pipe(format='svg').decode('utf-8')
+    with open(out_svg_path, 'w') as f:
+        f.write(svg_content)
+
+def plot_and_save_dtreeviz(clf, X, y, feature_names, class_names, out_svg_path):
+    from dtreeviz import model
+    viz = model(
+        clf,
+        X,
+        y,
+        target_name="label",
+        feature_names=feature_names,
+        class_names=[str(cls) for cls in class_names]
+    )
+    viz.view().save(out_svg_path)
+    print(f"dtreeviz visualization saved to: {out_svg_path}")
+
 def main():
-    print('hello')
     parser = argparse.ArgumentParser(description="Train and visualize a Decision Tree Classifier.")
     parser.add_argument("feature_csv", help="Path to features CSV file")
     parser.add_argument("labels_csv", help="Path to labels CSV file")
     parser.add_argument("model_out", help="Filename to serialize the trained model (e.g., model.pkl)")
     parser.add_argument("tree_png", help="Filename to save decision tree PNG (e.g., tree.png)")
+    parser.add_argument("tree_svg", help="Filename to save decision tree SVG (e.g., tree.svg)")
     args = parser.parse_args()
 
     df = load_and_merge_data(args.feature_csv, args.labels_csv)
-    y = df['label']
-    X_clean = df.drop(columns=["file_name", "label"])
+    print("Sample file names from features CSV:", df['file_name'].head())
+    print("Sample file names from labels CSV:", df['file_name'].head())
 
-    clf = train_and_evaluate(X_clean, y)
+    y = df['label']
+    from sklearn.preprocessing import LabelEncoder
+
+    # Encode labels as integers starting from 0
+    label_encoder = LabelEncoder()
+    y_encoded = label_encoder.fit_transform(df['label'])
+
+    X_clean = df.drop(columns=["file_name", "label"])
+    clf = train_and_evaluate(X_clean, pd.Series(y_encoded))
+
+    # Save model
     joblib.dump(clf, args.model_out)
     print(f"Model saved to: {args.model_out}")
 
-    plot_feature_importances(clf, X_clean.columns)
-    plot_and_save_tree(clf, X_clean.columns, [str(cls) for cls in sorted(y.unique())], args.tree_png)
+    # Visualizations
+   # plot_feature_importances(clf, X_clean.columns)
+    plot_and_save_tree(clf, X_clean.columns, list(map(str, label_encoder.classes_)), args.tree_png)
+    save_tree_as_svg(clf, X_clean.columns, label_encoder.classes_, args.tree_svg)
+    plot_and_save_dtreeviz(clf, X_clean, y_encoded, list(X_clean.columns), label_encoder.classes_, "dtreeviz.svg")
 
 if __name__ == "__main__":
     main()

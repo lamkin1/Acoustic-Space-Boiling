@@ -22,21 +22,21 @@ def main():
     # Step 1: Feature extraction for all runs
     data_dirs = [Path(__file__).parent / "labeled_runs", Path(__file__).parent / "unlabeled_runs"]
     
-    all_files = []
-    for dir_path in data_dirs:
-        all_files.extend([str(f) for f in dir_path.glob('*.csv') if f.name != '.gitkeep'])
-    extracted_features = []
-    for f in all_files:
-        features = extract_all_features(Path(f))
-        # Store only the child file name (no parent folders)
-        features["file_name"] = Path(features["file_name"]).name
-        extracted_features.append(features)
-    feature_df = pd.DataFrame(extracted_features)
-    feature_df.fillna(0, inplace=True)
-    # Always save to absolute path Production/app_resources/features.csv
+    # all_files = []
+    # for dir_path in data_dirs:
+    #     all_files.extend([str(f) for f in dir_path.glob('*.csv') if f.name != '.gitkeep'])
+    # extracted_features = []
+    # for f in all_files:
+    #     features = extract_all_features(Path(f))
+    #     # Store only the child file name (no parent folders)
+    #     features["file_name"] = Path(features["file_name"]).name
+    #     extracted_features.append(features)
+    # feature_df = pd.DataFrame(extracted_features)
+    # feature_df.fillna(0, inplace=True)
+    # # Always save to absolute path Production/app_resources/features.csv
     features_csv_path = Path(__file__).parent / "app_resources" / "features.csv"
-    feature_df.to_csv(features_csv_path, index=False)
-    print(f"Features saved successfully to '{features_csv_path}'!")
+    # feature_df.to_csv(features_csv_path, index=False)
+    # print(f"Features saved successfully to '{features_csv_path}'!")
 
     # Step 2: Scaling, PCA, Clustering, and Output
     output_dir = Path(__file__).parent / "app_resources" / "output"

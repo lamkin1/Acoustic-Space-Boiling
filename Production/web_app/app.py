@@ -1195,6 +1195,7 @@ def update_cluster_plot(x_axis, y_axis, z_axis, clusters_count):
         clusters_count=clusters_count
     )
 
-# --- Main App Runner ---
+server = app.server
+
 if __name__ == '__main__':
-    app.run(debug=True, port=8040)
+    app.run(debug=False)

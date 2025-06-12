@@ -1,4 +1,115 @@
 # Acoustic-Space-Boiling
-Acoustic Data-based Characterization of Incipient Boiling for Space Applications
+
+**Acoustic Data-based Characterization of Incipient Boiling for Space Applications**
+
+This repository contains code, data, and documentation for a project aimed at detecting and characterizing incipient boiling in cryogenic fuel tanks using non-intrusive acoustic sensors. The project was developed in collaboration with NASA Ames Research Center.
+
+---
+
+## Project Motivation
+
+Cryogenic fuel tanks store liquefied gases like oxygen and hydrogen for spacecraft. Even minor heat leaks in microgravity can trigger incipient boiling, leading to pressurization and catastrophic failure. Traditional thermal sensors often miss early boiling events due to low resolution and delayed response times.
+
+Our approach uses **accelerometer-based acoustic sensing** to rapidly and reliably detect the onset of boiling—enabling safer cryogenic fuel management in space environments.
+
+---
+
+## Data Overview
+
+- **441 acoustic experiments** conducted at NASA
+- Data recorded at **10,000 Hz**
+- Each CSV contains:
+  - 2 channels (sensor amplitudes)
+  - 1–30 seconds of signal data
+- Labels correspond to **boiling regimes** (e.g., random, single rhythmic)
+
+---
+
+## Feature Engineering
+
+Two main categories:
+
+### Time-Domain Features
+- Peak amplitudes and timing
+- Time above threshold
+- Peaks per second
+- Peak time differences
+- Dominant rhythmic patterns
+
+### Frequency-Domain Features
+- Power spectral density
+- Spectral entropy
+- Frequency centroid
+- Top peak frequency
+- Number of spectral peaks
+
+---
+
+## Rhythmic Pattern Detection Algorithm
+
+A 5-step algorithm detects **dominant rhythmic patterns** in the acoustic data:
+
+1. **Estimate noise level**
+2. **Generate candidate rhythms**
+3. **Count peak “hits” for each candidate**
+4. **Prune weak candidates via statistical tests**
+5. **Group similar candidates and extract dominant ones**
+
+The result: number of statistically significant boilings per trial.
+
+---
+
+## ML Unsupervised Pipeline
+
+1. **Feature Extraction** → `features.csv`
+2. **Scaling** → for PCA + clustering
+3. **PCA** → reduce noise & redundancy (6 PCs > 97% variance)
+4. **K-Means Clustering** → unsupervised boiling regime grouping
+5. **Classification** → supervised learning with decision trees
+
+---
+
+## ML Supervised Pipeline
+
+1. **Label Training Data** → manually categorize boiling regimes (e.g., Single Rhythmic, Noise)
+2. **Feature Extraction** → engineer time-domain and frequency-domain features
+3. **Select Model** → evaluate classifiers; use decision trees for interpretability
+4. **Fit Model** → train model on PCA-transformed feature set
+5. **Test Model** → evaluate using precision, recall, and F1 score per class
+
+---
+
+## Supervised Learning Results
+
+| Class             | Support | Precision | Recall | F1 Score |
+|------------------|---------|-----------|--------|----------|
+| Single Rhythmic  | 62      | 86.56%    | 85.48% | 85.22%   |
+| Random           | 57      | 87.54%    | 80.70% | 83.36%   |
+| Noise            | 31      | 90.16%    | 87.09% | 87.38%   |
+| Other Classes    | –       | Lower performance due to underrepresentation |
+
+---
+
+## Interactive Web App
+
+A demo web application allows interactive exploration of results:
+
+- **2D/3D PCA visualizations**
+- **Detailed time-domain signal plots**
+- **Dynamic cluster selection and comparison tools**
+- **Supervised learning model visualization**
+
+---
+
+## Authors
+
+| Name               | Role                                              | Email                     |
+|--------------------|---------------------------------------------------|---------------------------|
+| **Zachary Weinfeld** | Acoustic feature engineering, supervised learning | zweinfeld@calpoly.edu     |
+| **James Lamkin**     | Data pipeline, rhythmic detection algorithm      | lamkin@calpoly.edu        |
+| **Krish Gupta**      | Web application, system integration              | kgupta15@calpoly.edu      |
+| **Andrew Martinez**  | Statistical analysis, clustering                 | amart531@calpoly.edu      |
+
+
 
 https://acoustic-space-boiling-xou2.onrender.com

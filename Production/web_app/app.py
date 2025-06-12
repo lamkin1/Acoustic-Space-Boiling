@@ -17,6 +17,18 @@ import importlib.util
 import joblib
 from sklearn.preprocessing import StandardScaler
 
+# Add this near the top of the file with other constants
+REGIME_MAPPING = {
+    0: "Single Rhythmic",
+    1: "Double Rhythmic",
+    2: "Random",
+    3: "Rhythmic with Climax",
+    4: "Noise",
+    5: "1 Rhythmic + Random",
+    6: "Triple Rhythmic",
+    7: "Transition"
+}
+
 # --- Helper Functions ---
 def get_svg_path():
     """Get the absolute path to the dtreeviz.svg file."""
@@ -461,7 +473,7 @@ app.index_string = '''
             {%scripts%}
             {%renderer%}
             <script>
-                let currentScale = 0.86;
+                let currentScale = 0.83;
                 let currentX = 0;
                 let currentY = 0;
                 let isDragging = false;
@@ -770,6 +782,8 @@ def create_classify_results_view(result_data):
 
     res = result_data['result']
     analysis = res['analysis']
+    predicted_class = res['class']
+    regime_name = REGIME_MAPPING.get(predicted_class, "Unknown")
 
     # --- Success Message ---
     success_message = html.Div(
@@ -780,14 +794,14 @@ def create_classify_results_view(result_data):
                 className="flex items-center justify-center mb-2",
                 children=[
                     html.Div(
-                        str(res['class']),
+                        str(predicted_class),
                         className="rounded-full bg-green-200 text-green-800 text-3xl font-bold w-16 h-16 flex items-center justify-center shadow"
                     )
                 ]
             ),
             html.Div([
                 html.Span("Predicted Class: ", className="font-semibold text-gray-700"),
-                html.Span(str(res['class']), className="text-lg font-bold text-green-700")
+                html.Span(f"{predicted_class} - {regime_name}", className="text-lg font-bold text-green-700")
             ], className="mb-2"),
             html.P("Your data point has been classified and highlighted in the 3D visualization below", className="text-gray-600 mb-4"),
             html.Button(
@@ -923,7 +937,7 @@ app.layout = html.Div(
         dcc.Location(id='url', refresh=False),
         dcc.Store(id='uploaded-file-store'),
         dcc.Store(id='classification-result-store'),
-        dcc.Store(id='svg-transform-store', data={'scale': 0.86, 'x': 0, 'y': 0}),
+        dcc.Store(id='svg-transform-store', data={'scale': 0.83, 'x': 0, 'y': 0}),
         dcc.Interval(id='processing-interval', interval=800, n_intervals=0, disabled=True),
         create_header(),
         html.Main(id='page-content', className="container mx-auto px-4 py-8")
@@ -974,7 +988,7 @@ def handle_svg_controls(zoom_in_clicks, zoom_out_clicks, reset_clicks, current_t
         new_scale = max(0.1, current_transform['scale'] * 0.8)
         return {**current_transform, 'scale': new_scale}
     elif button_id == 'reset-view-btn':
-        return {'scale': 0.86, 'x': 0, 'y': 0}
+        return {'scale': 0.83, 'x': 0, 'y': 0}
 
     return current_transform
 

@@ -19,10 +19,10 @@ def get_peaks(acceleration0):
         return max(lower, min(value, upper))
     height = clamp(max(percentile, percent_of_max))
     distance = 350 + 5 / height
-    x, y = signal.find_peaks(acceleration0, distance=distance, height=height)
-    x = x / 10000
-    y = y["peak_heights"]
-    return x, y
+    peak_indices, peak_heights = signal.find_peaks(acceleration0, distance=distance, height=height)
+    # Keep original indices for data access
+    scaled_indices = peak_indices / 10000
+    return peak_indices, scaled_indices, peak_heights["peak_heights"]
 
 class Candidates:
     def __init__(self, x, y, run_length, confidence=0.99, verbose=False):
@@ -203,22 +203,22 @@ def compute_spectral_bandwidth(signal_data, fs=1000):
 def extract_peak_features(file):
     data = pd.read_csv(file, index_col="Time")
     time, signal_data = unpack_data(data)
-    peaks, magnitude = get_peaks(signal_data)
-    if len(peaks) <= 2:
+    peak_indices, scaled_peaks, peak_heights = get_peaks(signal_data)
+    if len(peak_indices) <= 2:
         return None
-    magnitude = np.array(signal_data.loc[peaks])
-    time_differences = np.diff(peaks) if len(peaks) > 1 else [np.nan]
+    magnitude = np.array(signal_data.iloc[peak_indices])  # Use original indices for data access
+    time_differences = np.diff(scaled_peaks) if len(scaled_peaks) > 1 else [np.nan]  # Use scaled indices for time differences
     std_dev_time_diff = np.std(time_differences)
     mean_time_diff = np.mean(time_differences)
     median_time_diff = np.median(time_differences)
     max_peak = np.max(magnitude) if len(magnitude) > 0 else np.nan
     median_peak = np.median(magnitude) if len(magnitude) > 0 else np.nan
     std_peak = np.std(magnitude) if len(magnitude) > 0 else np.nan
-    avg_peaks_per_second = np.mean(peaks) if len(peaks) > 0 else np.nan
+    avg_peaks_per_second = np.mean(scaled_peaks) if len(scaled_peaks) > 0 else np.nan  # Use scaled indices
     sum_peak_magnitude = np.sum(magnitude) if len(magnitude) > 0 else np.nan
     percent_time_above_threshold = np.mean(signal_data > min(magnitude))
     run_length = len(time) / 10000
-    num_boilings, unused_peak_proportion = get_boilings_data(peaks, magnitude, run_length)
+    num_boilings, unused_peak_proportion = get_boilings_data(scaled_peaks, magnitude, run_length)  # Use scaled indices
     project_root = Path(__file__).resolve().parent.parent
     file_path = Path(file).resolve()
     try:

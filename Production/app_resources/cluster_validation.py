@@ -103,7 +103,7 @@ def extract_clean_filename(path_str):
 
 k_clusters = 7
 n_pcs = 3
-df_labels = pd.read_csv("parsed_labels.csv")
+df_labels = pd.read_csv("labels.csv")
 df_labels["filename"] = df_labels["filename"].map(extract_clean_filename)
 df_clusters = pd.read_csv(f"../output/results_{str(k_clusters)}_clusters.csv")
 df_clusters["file_name"] = df_clusters["file_name"].map(extract_clean_filename)

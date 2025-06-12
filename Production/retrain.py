@@ -10,6 +10,8 @@ import pandas as pd
 import os
 from pathlib import Path
 import time
+import joblib
+from sklearn.preprocessing import StandardScaler
 
 def main():
     # Always sort new_runs into labeled_runs and unlabeled_runs
@@ -21,7 +23,7 @@ def main():
 
     # Step 1: Feature extraction for all runs
     data_dirs = [Path(__file__).parent / "labeled_runs", Path(__file__).parent / "unlabeled_runs"]
-    
+
     # all_files = []
     # for dir_path in data_dirs:
     #     all_files.extend([str(f) for f in dir_path.glob('*.csv') if f.name != '.gitkeep'])
@@ -45,8 +47,16 @@ def main():
     features_num_boiling_path = Path(__file__).parent / "app_resources" / "featuresNumBoilingCorrect80Percent.csv"
     data = pd.read_csv(features_csv_path)
     file_names = data["file_name"].copy()
-    scaled_data, remaining_column_names = preprocess(data)
-    pca_data, loadings_matrix = apply_pca(scaled_data, n_components=6, previous_column_names=remaining_column_names, verbose=True)
+    # Fit and save the scaler
+    numeric_cols = [col for col in data.columns if col != "file_name"]
+    scaler = StandardScaler()
+    scaled_data = scaler.fit_transform(data[numeric_cols])
+    # Save the scaler for inference
+    scaler_path = Path(__file__).parent / "app_resources" / "output" / "scaler.pkl"
+    joblib.dump(scaler, scaler_path)
+    print(f"Scaler saved to: {scaler_path}")
+    # Use the scaled data for PCA
+    pca_data, loadings_matrix = apply_pca(scaled_data, n_components=6, previous_column_names=numeric_cols, verbose=True)
     for num_clusters in range(2, 20):
         output_path_df = output_dir / f'results_{num_clusters}_clusters.csv'
         output_path_loadings = output_dir / 'loadings.csv'

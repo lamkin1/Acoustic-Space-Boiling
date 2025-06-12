@@ -278,7 +278,7 @@ app.layout = html.Div([
     Input('logged-in','data')
 )
 def render(logged):
-    return main_layout if logged else auth_layout
+    return main_layout
 
 @app.callback(
     Output('logged-in','data'),

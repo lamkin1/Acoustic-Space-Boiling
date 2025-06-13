@@ -1,5 +1,0 @@
-dash
-plotly
-pandas
-scikit-learn
-gunicorn

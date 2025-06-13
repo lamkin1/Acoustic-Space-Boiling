@@ -182,7 +182,3 @@ Gupta, K., Lamkin, J., Martinez, A., & Weinfeld, Z. (2025). Acoustic-Space-Boili
 Or, include a link to our GitHub repository:
 
 **[github.com/lamkin1/Acoustic-Space-Boiling](https://github.com/lamkin1/Acoustic-Space-Boiling)**
-
----
-
-https://acoustic-space-boiling-xou2.onrender.com

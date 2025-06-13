@@ -6,6 +6,61 @@ This repository contains code, data, and documentation for a project aimed at de
 
 ---
 
+## Getting Started: Download and Usage
+
+To download and use the Acoustic-Space-Boiling app:
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/your-username/Acoustic-Space-Boiling.git
+   cd Acoustic-Space-Boiling
+   ```
+2. **Install dependencies:**
+   - Ensure you have Python 3.10+ installed.
+   - Install required packages:
+     ```bash
+     pip install -r Production/requirements.txt
+     ```
+3. **Run the pipeline:**
+   - To process new data and retrain models, run:
+     ```bash
+     python Production/retrain.py
+     ```
+    - You will be prompted to choose whether to run both supervised and unsupervised retraining, or just unsupervised retraining. Type `y` or `n` as instructed.
+   - Outputs (features, models, plots) will be saved in `Production/app_resources/output/`.
+4. **Launch the web app:**
+   - Start the interactive web application:
+     ```bash
+     python Production/web_app/app.py
+     ```
+   - Open your browser and go to `http://localhost:5000` to explore results and visualizations.
+
+For more details, see the documentation in the `Production/` folder and the comments in each script.
+
+---
+
+## Adding New Runs and Labels
+
+To add new experimental runs and label them for supervised learning:
+
+1. **Place new data files:**
+   - Copy your new acoustic data CSV files into the `Production/new_runs/` directory.
+2. **Prepare a label CSV:**
+   - Create a CSV file in `Production/new_labels/` with two columns: `filename` and `label`.
+   - The `filename` should be just the name of the CSV file (do not include any folder path), and should match the new run's CSV filename (up to the first period is used for matching).
+   - The `label` should be an integer corresponding to the current label mapping (see documentation or existing label files for the mapping between integers and boiling regime categories).
+3. **Run the pipeline:**
+   - Execute the retraining script:
+     ```bash
+     python Production/retrain.py
+     ```
+   - You will be prompted to choose whether to run both supervised and unsupervised retraining, or just unsupervised retraining. Type `y` or `n` as instructed.
+   - The pipeline will automatically sort new runs into labeled and unlabeled directories, merge labels, extract features, and update all downstream outputs.
+
+For more details on file formats and troubleshooting, see the documentation in the `Production/` folder.
+
+---
+
 ## Project Motivation
 
 Cryogenic fuel tanks store liquefied gases like oxygen and hydrogen for spacecraft. Even minor heat leaks in microgravity can trigger incipient boiling, leading to pressurization and catastrophic failure. Traditional thermal sensors often miss early boiling events due to low resolution and delayed response times.

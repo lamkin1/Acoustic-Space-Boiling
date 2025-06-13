@@ -48,7 +48,7 @@ To add new experimental runs and label them for supervised learning:
 2. **Prepare a label CSV:**
    - Create a CSV file in `Production/new_labels/` with two columns: `filename` and `label`.
    - The `filename` should be just the name of the CSV file (do not include any folder path), and should match the new run's CSV filename (up to the first period is used for matching).
-   - The `label` should be an integer corresponding to the current label mapping (see documentation or existing label files for the mapping between integers and boiling regime categories).
+   - The `label` should be an integer corresponding to the current label mapping (see the mapping in `Production/web_app/app.py` for the correspondence between integers and boiling regime categories, or to modify the mapping).
 3. **Run the pipeline:**
    - Execute the retraining script:
      ```bash

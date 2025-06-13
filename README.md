@@ -165,6 +165,24 @@ A demo web application allows interactive exploration of results:
 | **Krish Gupta**      | Web application, system integration              | kgupta15@calpoly.edu      |
 | **Andrew Martinez**  | Statistical analysis, clustering                 | amart531@calpoly.edu      |
 
+---
 
+## How to Cite
+
+If you use this work in your research, please cite our project as follows:
+```
+Krishnanshu Gupta, James Lamkin, Andrew Martinez, and Zachary Weinfeld.
+Acoustic-Space-Boiling: Acoustic Feature-Based Characterization of Boiling Regimes in Cryogenic Fuel Tanks.
+GitHub repository, 2025. Available at: https://github.com/lamkin1/Acoustic-Space-Boiling.
+```
+APA Citation: 
+```
+Gupta, K., Lamkin, J., Martinez, A., & Weinfeld, Z. (2025). Acoustic-Space-Boiling: Acoustic feature-based characterization of boiling regimes in cryogenic fuel tanks. GitHub. https://github.com/lamkin1/Acoustic-Space-Boiling
+```
+Or, include a link to our GitHub repository:
+
+**[github.com/lamkin1/Acoustic-Space-Boiling](https://github.com/lamkin1/Acoustic-Space-Boiling)**
+
+---
 
 https://acoustic-space-boiling-xou2.onrender.com
